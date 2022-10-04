@@ -15,9 +15,8 @@ def connecting_to_dolfin(user_id):
     try:
         r = rq.get(f'http://localhost:3001/v1.0/browser_profiles/{user_id}/start?automation=1')
         port = json.loads(r.content).get('automation').get('port')
-    except:
-        print('Не получилось подключится к dolphin. Возможно Dolphin Anty не запущен')
-        input('')
+    except Exception as e:
+        print(f'Не получилось подключится к dolphin. Возможно Dolphin Anty не запущен или профиль уже запущен')
     chrome_options = Options()
     chrome_options.add_experimental_option("debuggerAddress", f"localhost:{port}")
     s = webdriver.chrome.service.Service(f"{cwd}/chromedriver-windows-x64.exe")
@@ -33,10 +32,12 @@ def user_inf(file):
             tags.append(tg[:-1])
             data.append([id_, name])
     return data, tags
-def upvote(user_id, posts):
+def upvote(user_id, posts, brk = 1):
+    error = False
     joined = 0
     upvotes = 0
     one_post = False
+
     driver = connecting_to_dolfin(user_id)
     if isinstance(posts, str):
         one_post = True
@@ -46,7 +47,7 @@ def upvote(user_id, posts):
         if one_post:
             inf_post = ''
         driver.get(post)
-        driver.implicitly_wait(4)
+        driver.implicitly_wait(brk + 1)
         try:
             driver.find_element(By.CSS_SELECTOR, 'div[data-test-id="post-content"] button[aria-label="upvote"][aria-pressed="false"]').click()
             upvotes += 1
@@ -56,9 +57,12 @@ def upvote(user_id, posts):
         try:
             driver.find_element(By.CSS_SELECTOR, 'a[data-click-id="subreddit"]').click()
         except sl.common.exceptions.NoSuchElementException:
-            driver.find_element(By.CSS_SELECTOR, 'span[title^= "r/"]').click()
-            t
-        driver.implicitly_wait(3)
+            try:
+                driver.find_element(By.CSS_SELECTOR, 'span[title^= "r/"]').click()
+            except sl.common.exceptions.NoSuchElementException as e:
+                print(f'{inf_post} - Не удалось перейти в саб')
+                continue
+        driver.implicitly_wait(2)
         try:
             if driver.find_element(By.CSS_SELECTOR, 'div._1Q_zPN5YtTLQVG72WhRuf3  > button').text == "Join":
                 driver.find_element(By.CSS_SELECTOR, 'div._1Q_zPN5YtTLQVG72WhRuf3  > button').click()
@@ -67,8 +71,8 @@ def upvote(user_id, posts):
                 print(f'{inf_post} - Не удалось нажать Join, возможно уже засабан')
         except sl.common.exceptions.NoSuchElementException:
             print(f'{inf_post} - Не удалось найти Join, возможно уже засабан')
-        driver.implicitly_wait(2)
-    driver.implicitly_wait(random.randrange(1,5))
+        driver.implicitly_wait(brk+1)
+    driver.implicitly_wait(random.randrange(1, brk+1))
     rq.get(f'http://localhost:3001/v1.0/browser_profiles/{user_id}/stop')
     return upvotes, joined
 
